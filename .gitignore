@@ -1,0 +1,44 @@
+# Terraform 상태 파일 (민감한 정보 포함!)
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Terraform 디렉토리
+.terraform/
+.terraform.lock.hcl
+
+# 민감한 변수 파일
+terraform.tfvars
+*.auto.tfvars
+secrets.tfvars
+
+# 로그 파일
+*.log
+crash.log
+crash.*.log
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration files
+.terraformrc
+terraform.rc
+
+# 환경 변수 파일
+.env
+.env.local
+
+# OS 관련
+.DS_Store
+Thumbs.db
+
+# IDE 관련
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+```
