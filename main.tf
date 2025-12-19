@@ -83,7 +83,16 @@ resource "aws_network_acl" "subnet_acl" {
 
   ingress {
     protocol   = "tcp"
-    rule_no    = 101
+    rule_no    = 105
+    action     = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 80
+    to_port    = 80
+  }
+
+  ingress {
+    protocol   = "tcp"
+    rule_no    = 110
     action     = "allow"
     cidr_block = "0.0.0.0/0"
     from_port  = 1024
@@ -92,30 +101,12 @@ resource "aws_network_acl" "subnet_acl" {
 
   # Outbound Rules
   egress {
-    protocol   = "tcp"
+    protocol   = "-1"
     rule_no    = 100
     action     = "allow"
     cidr_block = "0.0.0.0/0"
-    from_port  = 1024
-    to_port    = 65535
-  }
-
-  egress {
-    protocol   = "tcp"
-    rule_no    = 101
-    action     = "allow"
-    cidr_block = "0.0.0.0/0"
-    from_port  = 80
-    to_port    = 80
-  }
-
-  egress {
-    protocol   = "tcp"
-    rule_no    = 110
-    action     = "allow"
-    cidr_block = "0.0.0.0/0"
-    from_port  = 443
-    to_port    = 443
+    from_port  = 0
+    to_port    = 0
   }
 
   tags = {
@@ -188,16 +179,29 @@ resource "aws_iam_role_policy_attachment" "ssm_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
-# Attach S3 Read Only Policy to IAM Role
-resource "aws_iam_role_policy_attachment" "s3_readonly_policy" {
-  role       = aws_iam_role.ec2_ssm_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
-}
+# [리팩토링] S3 FullAccess와 ReadOnly를 삭제하고, 이 버킷에만 접근하는 인라인 정책 추가
+resource "aws_iam_role_policy" "s3_access_policy" {
+  name = "CS-S3-Log-Access"
+  role = aws_iam_role.ec2_ssm_role.id
 
-# Attach S3 Full Access Policy to IAM Role
-resource "aws_iam_role_policy_attachment" "s3_full_policy" {
-  role       = aws_iam_role.ec2_ssm_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = [
+          "s3:PutObject",
+          "s3:GetObject",
+          "s3:ListBucket",
+          "s3:GetEncryptionConfiguration"
+        ]
+        Effect   = "Allow"
+        Resource = [
+          "${aws_s3_bucket.ssm_logs.arn}",
+          "${aws_s3_bucket.ssm_logs.arn}/*"
+        ]
+      }
+    ]
+  })
 }
 
 # IAM Instance Profile
@@ -209,6 +213,7 @@ resource "aws_iam_instance_profile" "ec2_profile" {
 # S3 Bucket for SSM Logs
 resource "aws_s3_bucket" "ssm_logs" {
   bucket = var.s3_bucket_name
+  force_destroy = true
 
   tags = {
     Name = "CS-SSM-Logs-Bucket"
@@ -249,11 +254,14 @@ resource "aws_instance" "web_server" {
               yum update -y
 
               # Install Nginx
-              amazon-linux-extras install nginx1 -y
+              sudo yum install nginx -y
 
               # Start and enable Nginx
               systemctl start nginx
               systemctl enable nginx
+
+              # When Nginx installed, show this
+              echo <h1>Terraform 리팩토링 ver.2 배포 성공</h1><p><Nginx 자동 설치 완료/p>
 
               # Configure firewall
               systemctl status nginx
