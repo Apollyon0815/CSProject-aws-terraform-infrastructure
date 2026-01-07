@@ -41,3 +41,9 @@ variable "s3_bucket_name" {
   type        = string
   default     = "hdy-s3-for-cs-project"
 }
+
+variable "cloudflare_token" {
+  description = "Cloudflare Tunnel Token"
+  type        = string
+  sensitive   = true
+}

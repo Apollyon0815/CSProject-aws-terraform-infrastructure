@@ -194,7 +194,7 @@ resource "aws_iam_role_policy" "s3_access_policy" {
           "s3:ListBucket",
           "s3:GetEncryptionConfiguration"
         ]
-        Effect   = "Allow"
+        Effect = "Allow"
         Resource = [
           "${aws_s3_bucket.ssm_logs.arn}",
           "${aws_s3_bucket.ssm_logs.arn}/*"
@@ -212,7 +212,7 @@ resource "aws_iam_instance_profile" "ec2_profile" {
 
 # S3 Bucket for SSM Logs
 resource "aws_s3_bucket" "ssm_logs" {
-  bucket = var.s3_bucket_name
+  bucket        = var.s3_bucket_name
   force_destroy = true
 
   tags = {
@@ -260,11 +260,32 @@ resource "aws_instance" "web_server" {
               systemctl start nginx
               systemctl enable nginx
 
-              # When Nginx installed, show this
-              echo <h1>Terraform 리팩토링 ver.2 배포 성공</h1><p><Nginx 자동 설치 완료/p>
+              # Console log
+              echo "Terraform 리팩토링 ver.2 배포 성공 - Nginx 자동 설치 완료 - $(date)"
 
               # Configure firewall
               systemctl status nginx
+
+              # Add cloudflared.repo to /etc/yum.repos.d/ 
+              curl -fsSl https://pkg.cloudflare.com/cloudflared.repo | sudo tee /etc/yum.repos.d/cloudflared.repo
+
+              #update repo
+              sudo yum update -y
+
+              # install cloudflared
+              sudo yum install cloudflared -y
+
+              # 폴더 생성
+              sudo mkdir -p /etc/cloudflared
+
+              # 파일 생성
+              echo "protocol: http2" | sudo tee /etc/cloudflared/config.yml 
+
+              sudo cloudflared service install ${var.cloudflare_token}
+
+              # Start Service
+              sudo systemctl enable cloudflared
+              sudo systemctl start cloudflared
               EOF
 
   tags = {
